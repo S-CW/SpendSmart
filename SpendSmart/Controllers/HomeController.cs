@@ -7,10 +7,12 @@ namespace SpendSmart.Controllers
     public class HomeController : Controller
     {
         private readonly ILogger<HomeController> _logger;
+        public readonly SpendSmartDbContext _context;
 
-        public HomeController(ILogger<HomeController> logger)
+        public HomeController(ILogger<HomeController> logger, SpendSmartDbContext context)
         {
             _logger = logger;
+            _context = context;
         }
 
         public IActionResult Index()
@@ -20,17 +22,49 @@ namespace SpendSmart.Controllers
 
         public IActionResult Expenses()
         {
-            return View();
+            var allExpneses = _context.Expenses.ToList();
+
+            var totalExpenses = allExpneses.Sum(x => x.Value);
+
+            ViewBag.Expenses = totalExpenses;
+
+            return View(allExpneses);
         }
 
-        public IActionResult CreateEditExpense()
+        public IActionResult DeleteExpense(int id)
         {
+            var expenseInDb = _context.Expenses.SingleOrDefault(expense => expense.Id == id);
+            _context.Expenses.Remove(expenseInDb);
+            _context.SaveChanges();
+            return RedirectToAction("Expenses");
+        }
+
+        public IActionResult CreateEditExpense(int? id)
+        {
+            if (id != null)
+            {
+                // editing -> load an expense by id
+                var expenseInDb = _context.Expenses.SingleOrDefault(expense => expense.Id == id);
+                return View(expenseInDb);
+            }
+
             return View();
         }
 
         public IActionResult CreateEditExpenseForm(Expense model)
         {
-            return RedirectToAction("Index");
+            if (model.Id == 0)
+            {
+                // Create
+                _context.Expenses.Add(model);
+            } else
+            {
+                // Editing
+                _context.Expenses.Update(model);
+            }
+
+            _context.SaveChanges();
+            return RedirectToAction("Expenses");
         }
 
         public IActionResult Privacy()
